@@ -106,15 +106,15 @@ impl GameIndex {
 
     /// Resolve the full path of a file whether nested or flat.
     pub fn resolve_file(&self, file_path: &str) -> Option<&str> {
-        let Some(file) = self.file_mapping.get(file_path).map(String::as_str) else {
-            return self
-                .file_mapping
-                .values()
-                .find(|value| *value == file_path)
-                .map(String::as_str);
-        };
-
-        Some(file)
+        self.file_mapping
+            .get(file_path)
+            .map(String::as_str)
+            .or_else(|| {
+                self.file_mapping
+                    .values()
+                    .find(|value| value.as_str() == file_path)
+                    .map(String::as_str)
+            })
     }
 }
 
