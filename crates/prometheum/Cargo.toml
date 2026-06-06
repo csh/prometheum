@@ -7,3 +7,14 @@ authors.workspace = true
 publish.workspace = true
 
 [dependencies]
+serde_json.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+repak = { git = "https://github.com/trumank/repak.git" }
+sha2 = "0.11"
+hex = "0.4"
+
+[dev-dependencies]
+tempfile = "3.27"
