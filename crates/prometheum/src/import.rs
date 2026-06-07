@@ -36,8 +36,6 @@ pub struct ImportedMod {
 
     #[serde(default = "default_version")]
     pub version: String,
-
-    pub source: PathBuf,
 }
 
 fn default_name() -> String {

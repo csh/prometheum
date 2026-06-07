@@ -32,6 +32,16 @@ pub struct ExmodManifest {
     pub rows: Vec<ExModFilePatch>,
 }
 
+impl From<ExmodManifest> for ImportedMod {
+    fn from(manifest: ExmodManifest) -> ImportedMod {
+        ImportedMod {
+            name: manifest.name,
+            author: manifest.author,
+            version: manifest.version,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExModFilePatch {
     #[serde(rename = "CurrentFile")]
