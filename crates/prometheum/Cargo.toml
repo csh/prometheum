@@ -15,6 +15,7 @@ tracing.workspace = true
 repak = { git = "https://github.com/trumank/repak.git" }
 sha2 = "0.11"
 hex = "0.4"
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = "3.27"

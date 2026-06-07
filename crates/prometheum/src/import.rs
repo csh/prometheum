@@ -1,9 +1,12 @@
-﻿pub mod pak_file;
+﻿use std::path::{Path, PathBuf};
 
-use std::path::{Path, PathBuf};
+use crate::GameIndex;
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use crate::GameIndex;
+
+pub mod exmod;
+pub mod pak_file;
 
 #[derive(Error, Debug)]
 pub enum ImportError {
@@ -14,8 +17,13 @@ pub enum ImportError {
     Io(#[from] std::io::Error),
 
     #[error(transparent)]
-    Repak(#[from] repak::Error)
+    Repak(#[from] repak::Error),
 
+    #[error(transparent)]
+    Serde(#[from] serde_json::Error),
+
+    #[error("mod format not supported")]
+    UnsupportedFormat,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -29,7 +37,7 @@ pub struct ImportedMod {
     #[serde(default = "default_version")]
     pub version: String,
 
-    pub source: PathBuf
+    pub source: PathBuf,
 }
 
 fn default_name() -> String {
@@ -45,5 +53,9 @@ fn default_version() -> String {
 }
 
 pub trait ModImporter {
-    fn import(index: &GameIndex, mod_path: &Path, data_dir: &Path) -> Result<ImportedMod, ImportError>;
+    fn import(
+        index: &GameIndex,
+        mod_path: &Path,
+        data_dir: &Path,
+    ) -> Result<ImportedMod, ImportError>;
 }
