@@ -3,15 +3,32 @@
     fs,
     fs::File,
     io::{BufReader, Read},
+    num::NonZeroUsize,
     path::Path,
+    path::PathBuf,
+    sync::Mutex,
 };
 
+use lru::LruCache;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+const CACHE_CAPACITY: usize = 64;
+
+// this is probably overkill/premature optimisation but it can't hurt for larger modpacks
+fn default_cache() -> Mutex<LruCache<String, Value>> {
+    Mutex::new(LruCache::new(
+        NonZeroUsize::new(CACHE_CAPACITY).expect("cache capacity must be non-zero"),
+    ))
+}
+
 #[derive(Error, Debug)]
 pub enum IndexError {
+    #[error("could not find {0}")]
+    NotFound(PathBuf),
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 
@@ -26,6 +43,12 @@ pub enum IndexError {
 pub struct GameIndex {
     pak_hash: String,
     file_mapping: HashMap<String, String>,
+
+    #[serde(skip, default)]
+    data_dir: PathBuf,
+
+    #[serde(skip, default = "default_cache")]
+    cache: Mutex<LruCache<String, Value>>,
 }
 
 impl GameIndex {
@@ -42,8 +65,9 @@ impl GameIndex {
 
         if index_file.exists() {
             let json_str = fs::read_to_string(&index_file)?;
-            let cached = serde_json::from_str::<Self>(&json_str)?;
+            let mut cached = serde_json::from_str::<Self>(&json_str)?;
             if cached.pak_hash == hash {
+                cached.data_dir = index_data_dir.to_path_buf();
                 tracing::info!("Game index up to date, using cached data");
                 return Ok(cached);
             }
@@ -72,6 +96,9 @@ impl GameIndex {
         let mut pak_file = File::open(data_pak_path)?;
         let reader = repak::PakBuilder::new().reader(&mut pak_file)?;
         let extract_dir = index_data_dir.join("base");
+
+        tracing::info!("extracting game data to {}", extract_dir.display());
+
         let mut file_mapping = HashMap::new();
 
         for archive_file in reader.files() {
@@ -87,7 +114,7 @@ impl GameIndex {
 
             file_mapping.insert(filename.to_string(), archive_file.clone());
 
-            let out_file = extract_dir.join(filename);
+            let out_file = extract_dir.join(&archive_file);
             if let Some(parent) = out_file.parent() {
                 fs::create_dir_all(parent)?;
             }
@@ -101,6 +128,8 @@ impl GameIndex {
         Ok(Self {
             pak_hash: hash,
             file_mapping,
+            data_dir: index_data_dir.to_path_buf(),
+            cache: default_cache(),
         })
     }
 
@@ -115,6 +144,35 @@ impl GameIndex {
                     .find(|value| value.as_str() == file_path)
                     .map(String::as_str)
             })
+    }
+
+    pub fn load_file(&self, file_path: &str) -> Result<Value, IndexError> {
+        let relative_path = self
+            .resolve_file(file_path)
+            .ok_or(IndexError::NotFound(PathBuf::from(file_path)))?;
+
+        {
+            let mut cache = self.cache.lock().expect("index cache poisoned");
+            if let Some(cached) = cache.get(relative_path) {
+                tracing::debug!(file = %file_path, "cache hit");
+                return Ok(cached.clone());
+            }
+        }
+
+        tracing::debug!(file = %file_path, "cache miss, reading from disk");
+        let path = self.data_dir.join("base").join(relative_path);
+
+        tracing::info!("loading base data from {}", path.display());
+
+        let file = fs::File::open(path)?;
+        let document = serde_json::from_reader::<_, Value>(file)?;
+
+        {
+            let mut cache = self.cache.lock().expect("index cache poisoned");
+            cache.put(relative_path.to_string(), document.clone());
+        }
+
+        Ok(document)
     }
 }
 
@@ -182,6 +240,8 @@ mod tests {
         let index = GameIndex {
             pak_hash: "".into(),
             file_mapping,
+            data_dir: Default::default(),
+            cache: default_cache(),
         };
 
         assert!(index.resolve_file("D_Talents.json").is_some());

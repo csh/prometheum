@@ -26,7 +26,7 @@ pub enum ImportError {
     UnsupportedFormat,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Default, Serialize, Deserialize, Debug)]
 pub struct ImportedMod {
     #[serde(default = "default_name")]
     pub name: String,
