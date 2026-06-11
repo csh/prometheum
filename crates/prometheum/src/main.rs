@@ -2,6 +2,8 @@
 use std::path::Path;
 
 fn main() {
+    tracing_subscriber::fmt::init();
+
     let dir =
         std::fs::read_dir("./data/sample-mods").expect("Failed to read sample mods directory");
 
@@ -11,8 +13,17 @@ fn main() {
             continue;
         };
 
+        let Ok(file_type) = file.file_type() else {
+            tracing::warn!("skipping file: {:?}", file);
+            continue;
+        };
+
+        if !file_type.is_file() {
+            continue;
+        }
+
         let path = file.path();
-        println!("attempting to read {}", path.display());
+        tracing::info!("attempting to read {}", path.display());
 
         let ext = path
             .extension()
