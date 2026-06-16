@@ -1,6 +1,13 @@
-﻿use nom::{IResult, Parser};
+﻿use nom::bytes::complete::{tag, take_while1};
+use nom::bytes::take_while;
+use nom::character::complete::char;
+use nom::error::context;
+use nom::multi::many0;
+use nom::sequence::{delimited, terminated};
+use nom::{AsChar, IResult, Parser};
 
 /// Parsed [`NSLOCTEXT`](https://dev.epicgames.com/documentation/unreal-engine/text-localization-in-unreal-engine)
+#[derive(Debug)]
 pub struct LocalizableString {
     pub namespace: String,
 
@@ -10,18 +17,59 @@ pub struct LocalizableString {
 }
 
 /// Parsed [`FNameProperty`](https://dev.epicgames.com/documentation/unreal-engine/API/Runtime/CoreUObject/FNameProperty)
+#[derive(Debug)]
 pub struct FNameProperty {
     pub key: String,
     pub value: String,
 }
 
+/// Parse an identifier such as the key [FNameProperty] or namespace of [LocalizableString]
+fn parse_ident(input: &str) -> IResult<&str, &str> {
+    take_while1(|c: char| c.is_alphanumeric() || c == '_' || c == '+' || c == '%')(input)
+}
+
+fn quoted_string(input: &str) -> IResult<&str, &str> {
+    delimited(
+        context("opening double quote", char('"')),
+        take_while(|c: char| c != '"'),
+        context("closing double quote", char('"')),
+    )
+    .parse(input)
+}
+
 pub fn parse_nsloctext(input: &str) -> IResult<&str, LocalizableString> {
+    let (input, (namespace, key, display)) = delimited(
+        (
+            context("NSLOCTEXT", tag("NSLOCTEXT")),
+            context("opening parenthesis", tag("(")),
+        ),
+        (
+            context(
+                "namespace",
+                terminated(
+                    quoted_string,
+                    (many0(char(' ')), char(','), many0(char(' '))),
+                ),
+            ),
+            context(
+                "key",
+                terminated(
+                    quoted_string,
+                    (many0(char(' ')), char(','), many0(char(' '))),
+                ),
+            ),
+            context("value", quoted_string),
+        ),
+        context("closing parenthesis", tag(")")),
+    )
+    .parse(input)?;
+
     Ok((
         input,
         LocalizableString {
-            namespace: "".into(),
-            key: "".into(),
-            display: "".into(),
+            namespace: namespace.into(),
+            key: key.into(),
+            display: display.into(),
         },
     ))
 }
