@@ -1,9 +1,10 @@
 ﻿use nom::bytes::complete::{tag, take_while1};
 use nom::bytes::take_while;
 use nom::character::complete::char;
+use nom::combinator::opt;
 use nom::error::context;
 use nom::multi::many0;
-use nom::sequence::{delimited, terminated};
+use nom::sequence::{delimited, separated_pair, terminated};
 use nom::{AsChar, IResult, Parser};
 
 /// Parsed [`NSLOCTEXT`](https://dev.epicgames.com/documentation/unreal-engine/text-localization-in-unreal-engine)
@@ -21,11 +22,6 @@ pub struct LocalizableString {
 pub struct FNameProperty {
     pub key: String,
     pub value: String,
-}
-
-/// Parse an identifier such as the key [FNameProperty] or namespace of [LocalizableString]
-fn parse_ident(input: &str) -> IResult<&str, &str> {
-    take_while1(|c: char| c.is_alphanumeric() || c == '_' || c == '+' || c == '%')(input)
 }
 
 fn quoted_string(input: &str) -> IResult<&str, &str> {
@@ -75,11 +71,25 @@ pub fn parse_nsloctext(input: &str) -> IResult<&str, LocalizableString> {
 }
 
 pub fn parse_fname_property(input: &str) -> IResult<&str, FNameProperty> {
+    let (input, (key, value)) = delimited(
+        context("opening parenthesis", char('(')),
+        separated_pair(
+            context("key", take_while1(|c: char| c != '=')),
+            context(
+                "separator",
+                (opt(many0(char(' '))), char('='), opt(many0(char(' ')))),
+            ),
+            context("value", quoted_string),
+        ),
+        context("closing parenthesis", char(')')),
+    )
+    .parse(input)?;
+
     Ok((
         input,
         FNameProperty {
-            key: "".into(),
-            value: "".into(),
+            key: key.into(),
+            value: value.into(),
         },
     ))
 }
