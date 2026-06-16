@@ -1,11 +1,14 @@
-﻿use nom::bytes::complete::{tag, take_while1};
-use nom::bytes::take_while;
-use nom::character::complete::char;
-use nom::combinator::opt;
-use nom::error::context;
-use nom::multi::many0;
-use nom::sequence::{delimited, separated_pair, terminated};
-use nom::{AsChar, IResult, Parser};
+﻿use nom::{
+    sequence::{delimited, separated_pair, terminated},
+    multi::many0,
+    error::context,
+    combinator::opt,
+    character::complete::char,
+    bytes::take_while,
+    bytes::complete::{tag, take_while1},
+    IResult,
+    Parser
+};
 
 /// Parsed [`NSLOCTEXT`](https://dev.epicgames.com/documentation/unreal-engine/text-localization-in-unreal-engine)
 #[derive(Debug)]
@@ -137,6 +140,13 @@ mod tests {
     }
 
     #[test]
+    fn nsloctext_reject_incomplete_line() {
+        let input = r#"NSLOCTEXT("NS", "#;
+        let res = parse_nsloctext(input);
+        assert!(res.is_err(), "incomplete NSLOCTEXT should fail parsing");
+    }
+
+    #[test]
     fn fname_basic_stat_key() {
         let input = r#"(Value="BasePickaxeMeleeDamage_+%")"#;
         let (rest, prop) = parse_fname_property(input).unwrap();
@@ -168,5 +178,12 @@ mod tests {
         assert_eq!(rest, "");
         assert_eq!(prop.key, "RowName");
         assert_eq!(prop.value, "Stone_Tools_Reroute");
+    }
+
+    #[test]
+    fn fname_reject_incomplete_line() {
+        let input = r#"(RowName="Foobar"#;
+        let res = parse_fname_property(input);
+        assert!(res.is_err(), "incomplete FNameProperty should fail parsing");
     }
 }
