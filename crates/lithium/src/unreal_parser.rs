@@ -1,13 +1,11 @@
-﻿use nom::{
-    sequence::{delimited, separated_pair, terminated},
-    multi::many0,
+﻿use nom::character::complete::space0;
+use nom::sequence::preceded;
+use nom::{
+    bytes::{tag, take_while, take_while1}, character::char,
     error::context,
-    combinator::opt,
-    character::complete::char,
-    bytes::take_while,
-    bytes::complete::{tag, take_while1},
+    sequence::{delimited, separated_pair, terminated},
     IResult,
-    Parser
+    Parser,
 };
 
 /// Parsed [`NSLOCTEXT`](https://dev.epicgames.com/documentation/unreal-engine/text-localization-in-unreal-engine)
@@ -37,29 +35,23 @@ fn quoted_string(input: &str) -> IResult<&str, &str> {
 }
 
 pub fn parse_nsloctext(input: &str) -> IResult<&str, LocalizableString> {
-    let (input, (namespace, key, display)) = delimited(
-        (
-            context("NSLOCTEXT", tag("NSLOCTEXT")),
-            context("opening parenthesis", tag("(")),
-        ),
-        (
-            context(
-                "namespace",
-                terminated(
-                    quoted_string,
-                    (many0(char(' ')), char(','), many0(char(' '))),
+    let (input, (namespace, key, display)) = preceded(
+        tag("NSLOCTEXT"),
+        delimited(
+            context("opening parenthesis", char('(')),
+            (
+                context(
+                    "namespace",
+                    terminated(quoted_string, (space0, char(','), space0)),
                 ),
-            ),
-            context(
-                "key",
-                terminated(
-                    quoted_string,
-                    (many0(char(' ')), char(','), many0(char(' '))),
+                context(
+                    "key",
+                    terminated(quoted_string, (space0, char(','), space0)),
                 ),
+                context("value", quoted_string),
             ),
-            context("value", quoted_string),
+            context("closing parenthesis", char(')')),
         ),
-        context("closing parenthesis", tag(")")),
     )
     .parse(input)?;
 
@@ -77,11 +69,11 @@ pub fn parse_fname_property(input: &str) -> IResult<&str, FNameProperty> {
     let (input, (key, value)) = delimited(
         context("opening parenthesis", char('(')),
         separated_pair(
-            context("key", take_while1(|c: char| c != '=')),
             context(
-                "separator",
-                (opt(many0(char(' '))), char('='), opt(many0(char(' ')))),
+                "key",
+                take_while1(|c: char| c.is_alphanumeric() || c == '_'),
             ),
+            context("assignment operator", (space0, char('='), space0)),
             context("value", quoted_string),
         ),
         context("closing parenthesis", char(')')),
@@ -161,6 +153,7 @@ mod tests {
         let (rest, prop) = parse_fname_property(input).unwrap();
         assert_eq!(rest, "");
         assert_eq!(prop.value, "BasePickaxeMeleeDamage_+%");
+        assert_eq!(prop.key, "Value")
     }
 
     #[test]
