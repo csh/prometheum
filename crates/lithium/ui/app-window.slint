@@ -1,0 +1,26 @@
+﻿import { Palette, HorizontalBox, Button, ListView } from "std-widgets.slint";
+import { ModList } from "mod-list.slint";
+import { Changes } from "changes.slint";
+
+export component LithiumWindow inherits Window {
+    preferred-width: 1280px;
+    preferred-height: 720px;
+    min-width: 1280px;
+    min-height: 720px;
+    background: Palette.background;
+
+    HorizontalLayout {
+        ModList {
+            width: 25%;
+        }
+
+        Rectangle {
+            width: 1px;
+            background: Palette.border;
+        }
+
+        Changes {
+
+        }
+    }
+}

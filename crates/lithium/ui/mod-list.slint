@@ -1,0 +1,77 @@
+﻿import {
+    HorizontalBox,
+    Button,
+    VerticalBox,
+    CheckBox,
+    Palette,
+} from "std-widgets.slint";
+
+export component ModListEntry inherits Rectangle {
+    in property <string> name;
+    height: 48px;
+    background: Palette.control-background;
+    border-radius: 3px;
+
+    HorizontalBox {
+        spacing: 6px;
+        alignment: start;
+
+        Image {
+            width: 18px;
+            source: @image-url("lucide/menu.svg");
+            colorize: Palette.accent-background;
+        }
+
+        CheckBox { }
+
+        Text {
+            text: name;
+            vertical-alignment: TextVerticalAlignment.center;
+            horizontal-alignment: start;
+            overflow: elide;
+            font-weight: 500;
+        }
+    }
+}
+
+export component ModList inherits VerticalLayout {
+    Rectangle {
+        background: Palette.background;
+        max-height: 48px;
+
+        HorizontalBox {
+            padding-left: 16px;
+            alignment: space-between;
+
+            Text {
+                vertical-alignment: center;
+                font-size: 16px;
+                font-weight: FontWeight.bold;
+                text: @tr("Mods");
+            }
+
+            HorizontalBox {
+                Button {
+                    text: @tr("Import Mod");
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        background: Palette.background;
+
+        VerticalBox {
+            height: 100%;
+            alignment: start;
+
+            ModListEntry {
+                name: "My Mod";
+            }
+
+            ModListEntry {
+                name: "A secondary mod with a much, much longer name";
+            }
+        }
+    }
+}

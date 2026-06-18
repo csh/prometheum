@@ -1,0 +1,29 @@
+﻿import { HorizontalBox, Button, ListView, Palette } from "std-widgets.slint";
+
+export component Changes inherits VerticalLayout {
+    Rectangle {
+        background: Palette.background;
+        min-height: 48px;
+
+        HorizontalBox {
+            padding-left: 16px;
+            alignment: space-between;
+
+            Text {
+                vertical-alignment: TextVerticalAlignment.center;
+                horizontal-alignment: start;
+                font-weight: FontWeight.bold;
+                font-size: 16px;
+                text: @tr("Changes");
+            }
+
+            HorizontalBox {
+                Button {
+                    text: @tr("Settings");
+                }
+            }
+        }
+    }
+
+    ListView { }
+}
